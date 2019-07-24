@@ -8,16 +8,17 @@ class CPU:
     def __init__(self):
         """Construct a new CPU."""
         # Memory:
-        self.ram = [00000000] * 256
+        self.ram = [0] * 256
         # Registers:
-        self.pc = None  # Program Counter: Address of the current instruction
-        self.ir = None  # Instruction Register: Copy of self.pc
-        self.mar = None # Memory Address Register: Holds memory address being read/written
-        self.mdr = None # Memory Data Register: Holds value to write or value just read
-        self.fl = None  # Flags: L, G or E (See LS8 Spec)
+        self.pc = 0  # Program Counter: Address of the current instruction
+        self.ir = 0  # Instruction Register: Copy of self.pc
+        self.mar = 0 # Memory Address Register: Holds memory address being read/written
+        self.mdr = 0 # Memory Data Register: Holds value to write or value just read
+        self.fl = 0  # Flags: L, G or E (See LS8 Spec)
 
-        self.pointer = None
-        self.reg = []
+        self.halted = False
+        self.pointer = 0
+        self.reg = [0]*8
 
     def load(self):
         """Load a program into memory."""
@@ -43,10 +44,48 @@ class CPU:
 
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
+        ADD = 0b10100000
+        SUB = 0b10100001
+        MUL = 0b10100010
+        DIV = 0b10100011
+        MOD = 0b10100100
 
-        if op == "ADD":
+        INC = 0b01100101
+        DEC = 0b01100110
+
+        CMP = 0b10100111
+
+        AND = 0b10101000
+        NOT = 0b01101001
+        OR = 0b10101010
+        XOR = 0b10101011
+        SHL = 0b10101100
+        SHR = 0b10101101
+
+        if op == ADD:
             self.reg[reg_a] += self.reg[reg_b]
-        #elif op == "SUB": etc
+        elif op == SUB:
+            self.reg[reg_a] -= self.reg[reg_b]
+        elif op == MUL:
+            self.reg[reg_a] *= self.reg[reg_b]
+        elif op == DIV:
+            if self.operand_b == 0:
+                print('Error: Cannot divide by 0')
+                # Break loop
+                self.halted = True
+            else:
+                self.reg[reg_a] = int(self.reg[reg_a] / self.reg[reg_b])
+        elif op == MOD:
+            if self.operand_b == 0:
+                print('Error: Cannot modulus by 0')
+                # Break loop
+                self.halted = True
+            else:
+                self.reg[reg_a] %= self.reg[reg_b]
+        elif op == INC:
+            self.reg[reg_a] += 1
+        elif op == DEC:
+            self.reg[reg_a] -= 1
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -72,63 +111,64 @@ class CPU:
 
     def run(self):
         """Run the CPU."""
+        # PC Mutators:
+        # CALL = 0b01010000
+        # RET = 0b00010001
 
-        ADD = 0b10100000
-        SUB = 0b10100001
-        MUL = 0b10100010
-        DIV = 0b10100011
-        MOD = 0b10100100
+        # INT = 0b01010010
+        # IRET = 0b00010011
 
-        INC = 0b01100101
-        DEC = 0b01100110
+        # JMP = 0b01010100
+        # JEQ = 0b01010101
+        # JNE = 0b01010110
+        # JGT = 0b01010111
+        # JLT = 0b01011000
+        # JLE = 0b01011001
+        # JGE = 0b01011010
 
-        CMP = 0b10100111
+        # Other
+        # NOP = 0b00000000
 
-        AND = 0b10101000
-        NOT = 0b01101001
-        OR = 0b10101010
-        XOR = 0b10101011
-        SHL = 0b10101100
-        SHR = 0b10101101
+        HLT = 0b00000001 
 
-        while self.pc is not HLT:
+        LDI = 0b10000010  
+
+        # LD = 0b10000011
+        # ST = 0b10000100
+
+        # PUSH = 0b01000101 
+        # POP = 0b01000110 
+
+        PRN = 0b01000111 
+        # PRA = 0b01001000 
+
+        # Run through program
+        self.halted = False
+        while not self.halted:
             self.ir = self.ram_read(self.pc)
             self.operand_a = self.ram_read(self.pc + 1)
             self.operand_b = self.ram_read(self.pc + 2)
 
-            if self.ir == ADD:
-                self.operand_a += self.operand_b
-            elif self.ir == SUB:
-                self.operand_a -= self.operand_b
-            elif self.ir == MUL:
-                self.operand_a *= self.operand_b
-            elif self.ir == DIV:
-                if self.operand_b == 0:
-                    print('Error: Cannot divide by 0')
-                    self.ir = HLT
-                else:
-                    self.operand_a = int(self.operand_a/self.operand_b)
-            elif self.ir == MOD:
-                if self.operand_b == 0:
-                    print('Error: Cannot modulus by 0')
-                    self.ir = HLT
-                else:
-                    self.operand_a %= self.operand_b
-            
-            # Look at next instruction
-            self.pc += 1
+            if self.ir == LDI:
+                # Set the value or a register to an integer
+                self.reg[self.operand_a] = self.operand_b
+                # Adjust Program Counter 
+                self.pc += 3
+            elif self.ir == PRN:
+                print(self.reg[self.operand_a])
+                # Adjust Program Counter 
+                self.pc += 2
 
-            # elif self.ir == INC:
-            #     self.ir = self.ram_read(self.pc + 1)
-            # elif self.ir == DEC:
-            #     self.ir = self.ram_read(self.pc - 1)
+            # Look at next instruction
+            if self.ram[self.pc] == HLT or not self.ram[self.pc]:
+                self.halted = True
+            print(f'Next memory code: {self.ram[self.pc]}')
+        return
 
 
     def ram_read(self, address):
         # should accept the address to read and return the value stored there.
-        if self.ram[address]:
-            return self.ram[address]
-        return None
+        return self.ram[address]
 
     def ram_write(self, value, address):
         # should accept a value to write, and the address to write it to.
