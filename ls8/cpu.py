@@ -3,25 +3,6 @@
 import sys
 import re
 
-ops = {
-    'ADD': 0b10100000,
-    'SUB': 0b10100001,
-    'MUL': 0b10100010,
-    'DIV': 0b10100011,
-    'MOD': 0b10100100,
-    'INC': 0b01100101,
-    'DEC': 0b01100110,
-    'CMP': 0b10100111,
-    'AND': 0b10101000,
-    'NOT': 0b01101001,
-    'OR': 0b10101010,
-    'XOR': 0b10101011,
-    'SHL': 0b10101100,
-    'SHR': 0b10101101,
-    'HLT': 0b00000001, 
-    'LDI': 0b10000010,  
-    'PRN': 0b01000111
-}
 # PC Mutators:
 # CALL = 0b01010000
 # RET = 0b00010001
@@ -94,23 +75,8 @@ class CPU:
             raw_file = f.read()
         program = [int('0b'+s, 2) for s in raw_file.split() if re.match(r'\d{8}', s)]
         print(f'PROGRAM: {program}')
-
-        # -----------------------------------------
         
         address = 0
-
-        # For now, we've just hardcoded a program:
-
-        # program = [
-        #     # From print8.ls8
-        #     0b10000010, # LDI R0,8
-        #     0b00000000,
-        #     0b00001000,
-        #     0b01000111, # PRN R0
-        #     0b00000000,
-        #     0b00000001, # HLT
-        # ]
-
         for instruction in program:
             self.ram[address] = instruction
             address += 1
@@ -118,29 +84,29 @@ class CPU:
 
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
-        if op == ops['ADD']:
+        if self.branchtable[op] == 'ADD':
             self.reg[reg_a] += self.reg[reg_b]
-        elif op == ops['SUB']:
+        elif self.branchtable[op] == 'SUB':
             self.reg[reg_a] -= self.reg[reg_b]
-        elif op == ops['MUL']:
+        elif self.branchtable[op] == 'MUL':
             self.reg[reg_a] *= self.reg[reg_b]
-        elif op == ops['DIV']:
+        elif self.branchtable[op] == 'DIV':
             if reg_b == 0:
                 print('Error: Cannot divide by 0')
                 # Break loop
                 self.halted = True
             else:
                 self.reg[reg_a] = int(self.reg[reg_a] / self.reg[reg_b])
-        elif op == ops['MOD']:
+        elif self.branchtable[op] == 'MOD':
             if reg_b == 0:
                 print('Error: Cannot modulus by 0')
                 # Break loop
                 self.halted = True
             else:
                 self.reg[reg_a] %= self.reg[reg_b]
-        elif op == ops['INC']:
+        elif self.branchtable[op] == 'INC':
             self.reg[reg_a] += 1
-        elif op == ops['DEC']:
+        elif self.branchtable[op] == 'DEC':
             self.reg[reg_a] -= 1
         else:
             raise Exception("Unsupported ALU operation")
