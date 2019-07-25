@@ -3,6 +3,47 @@
 import sys
 import re
 
+ops = {
+    'ADD': 0b10100000,
+    'SUB': 0b10100001,
+    'MUL': 0b10100010,
+    'DIV': 0b10100011,
+    'MOD': 0b10100100,
+    'INC': 0b01100101,
+    'DEC': 0b01100110,
+    'CMP': 0b10100111,
+    'AND': 0b10101000,
+    'NOT': 0b01101001,
+    'OR': 0b10101010,
+    'XOR': 0b10101011,
+    'SHL': 0b10101100,
+    'SHR': 0b10101101,
+    'HLT': 0b00000001, 
+    'LDI': 0b10000010,  
+    'PRN': 0b01000111
+}
+# PC Mutators:
+# CALL = 0b01010000
+# RET = 0b00010001
+# INT = 0b01010010
+# IRET = 0b00010011
+# JMP = 0b01010100
+# JEQ = 0b01010101
+# JNE = 0b01010110
+# JGT = 0b01010111
+# JLT = 0b01011000
+# JLE = 0b01011001
+# JGE = 0b01011010
+
+# Other
+# NOP = 0b00000000
+# LD = 0b10000011
+# ST = 0b10000100
+# PUSH = 0b01000101 
+# POP = 0b01000110 
+# PRA = 0b01001000 
+
+
 class CPU:
     """Main CPU class."""
 
@@ -16,6 +57,26 @@ class CPU:
         self.mar = 0 # Memory Address Register: Holds memory address being read/written
         self.mdr = 0 # Memory Data Register: Holds value to write or value just read
         self.fl = 0  # Flags: L, G or E (See LS8 Spec)
+        # Branch Table
+        self.branchtable = {
+            0b10100000: 'ADD',
+            0b10100001: 'SUB',
+            0b10100010: 'MUL',
+            0b10100011: 'DIV',
+            0b10100100: 'MOD',
+            0b01100101: 'INC',
+            0b01100110: 'DEC',
+            0b10100111: 'CMP',
+            0b10101000: 'AND',
+            0b01101001: 'NOT',
+            0b10101010: 'OR',
+            0b10101011: 'XOR',
+            0b10101100: 'SHL',
+            0b10101101: 'SHR',
+            0b00000001: 'HLT', 
+            0b10000010: 'LDI',  
+            0b01000111: 'PRN'
+        }
 
         self.halted = False
         self.pointer = 0
@@ -57,47 +118,29 @@ class CPU:
 
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
-        ADD = '0b10100000'
-        SUB = '0b10100001'
-        MUL = '0b10100010'
-        DIV = '0b10100011'
-        MOD = '0b10100100'
-
-        INC = '0b01100101'
-        DEC = '0b01100110'
-
-        CMP = 0b10100111
-
-        AND = 0b10101000
-        NOT = 0b01101001
-        OR = 0b10101010
-        XOR = 0b10101011
-        SHL = 0b10101100
-        SHR = 0b10101101
-
-        if op == ADD:
+        if op == ops['ADD']:
             self.reg[reg_a] += self.reg[reg_b]
-        elif op == SUB:
+        elif op == ops['SUB']:
             self.reg[reg_a] -= self.reg[reg_b]
-        elif op == MUL:
+        elif op == ops['MUL']:
             self.reg[reg_a] *= self.reg[reg_b]
-        elif op == DIV:
-            if self.operand_b == 0:
+        elif op == ops['DIV']:
+            if reg_b == 0:
                 print('Error: Cannot divide by 0')
                 # Break loop
                 self.halted = True
             else:
                 self.reg[reg_a] = int(self.reg[reg_a] / self.reg[reg_b])
-        elif op == MOD:
-            if self.operand_b == 0:
+        elif op == ops['MOD']:
+            if reg_b == 0:
                 print('Error: Cannot modulus by 0')
                 # Break loop
                 self.halted = True
             else:
                 self.reg[reg_a] %= self.reg[reg_b]
-        elif op == INC:
+        elif op == ops['INC']:
             self.reg[reg_a] += 1
-        elif op == DEC:
+        elif op == ops['DEC']:
             self.reg[reg_a] -= 1
         else:
             raise Exception("Unsupported ALU operation")
@@ -124,36 +167,6 @@ class CPU:
 
     def run(self):
         """Run the CPU."""
-        # PC Mutators:
-        # CALL = 0b01010000
-        # RET = 0b00010001
-
-        # INT = 0b01010010
-        # IRET = 0b00010011
-
-        # JMP = 0b01010100
-        # JEQ = 0b01010101
-        # JNE = 0b01010110
-        # JGT = 0b01010111
-        # JLT = 0b01011000
-        # JLE = 0b01011001
-        # JGE = 0b01011010
-
-        # Other
-        # NOP = 0b00000000
-
-        HLT = '0b00000001' 
-
-        LDI = '0b10000010'  
-
-        # LD = 0b10000011
-        # ST = 0b10000100
-
-        # PUSH = 0b01000101 
-        # POP = 0b01000110 
-
-        PRN = '0b01000111' 
-        # PRA = 0b01001000 
 
         # Run through program
         self.halted = False
@@ -162,20 +175,24 @@ class CPU:
             self.operand_a = self.ram_read(self.pc + 1)
             self.operand_b = self.ram_read(self.pc + 2)
 
-            if self.ir == int(LDI, 2):
+            if self.branchtable[self.ir] in ['ADD', 'SUB', 'MUL', 'DIV', 'MOD', 'INC', 'DEC']:
+                self.alu(self.ir, self.operand_a, self.operand_b)
+                if self.branchtable[self.ir] in ['INC', 'DEC']:
+                    self.pc += 2
+                else:
+                    self.pc += 3
+
+            elif self.branchtable[self.ir] == 'LDI':
                 # Set the value or a register to an integer
                 self.reg[self.operand_a] = self.operand_b
-                # Adjust Program Counter 
                 self.pc += 3
-            elif self.ir == int(PRN, 2):
+            elif self.branchtable[self.ir] == 'PRN':
                 print(self.reg[self.operand_a])
-                # Adjust Program Counter 
                 self.pc += 2
 
             # Look at next instruction (if one exists)
-            if self.ram[self.pc] == int(HLT, 2) or not self.ram[self.pc]:
+            if self.branchtable[self.ram[self.pc]] == 'HLT' or not self.ram[self.pc]:
                 self.halted = True
-            print(f'Next memory code: {self.ram[self.pc]}')
         return
 
 
