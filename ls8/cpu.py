@@ -81,7 +81,6 @@ class CPU:
             self.ram[address] = instruction
             address += 1
 
-
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
         if self.branchtable[op] == 'ADD':
@@ -104,6 +103,13 @@ class CPU:
                 self.halted = True
             else:
                 self.reg[reg_a] %= self.reg[reg_b]
+        elif self.branchtable[op] == 'CMP':
+            if self.reg[reg_a] == self.reg[reg_b]:
+                self.fl = 0b00000001
+            elif self.reg[reg_a] < self.reg[reg_b]:
+                self.fl = 0b00000100
+            else:
+                self.fl = 0b00000010
         elif self.branchtable[op] == 'INC':
             self.reg[reg_a] += 1
         elif self.branchtable[op] == 'DEC':
@@ -133,15 +139,14 @@ class CPU:
 
     def run(self):
         """Run the CPU."""
-
-        # Run through program
+        # Run the loaded program
         self.halted = False
         while not self.halted:
             self.ir = self.ram_read(self.pc)
             self.operand_a = self.ram_read(self.pc + 1)
             self.operand_b = self.ram_read(self.pc + 2)
 
-            if self.branchtable[self.ir] in ['ADD', 'SUB', 'MUL', 'DIV', 'MOD', 'INC', 'DEC']:
+            if self.branchtable[self.ir] in ['ADD', 'SUB', 'MUL', 'DIV', 'MOD', 'INC', 'DEC', 'CMP']:
                 self.alu(self.ir, self.operand_a, self.operand_b)
                 if self.branchtable[self.ir] in ['INC', 'DEC']:
                     self.pc += 2
@@ -155,12 +160,17 @@ class CPU:
             elif self.branchtable[self.ir] == 'PRN':
                 print(self.reg[self.operand_a])
                 self.pc += 2
+            elif self.branchtable[self.ir] in ['JEQ', 'JGE', 'JGT', 'JLE', 'JLT', 'JMP', 'JNE']:
+                if self.branchtable[self.ir] == 'JEQ' and self.fl == 1:
+                    self.pc = self.reg[self.operand_a]
+
+                # print(self.reg[self.operand_a])
+                # self.pc += 2
 
             # Look at next instruction (if one exists)
             if self.branchtable[self.ram[self.pc]] == 'HLT' or not self.ram[self.pc]:
                 self.halted = True
         return
-
 
     def ram_read(self, address):
         # should accept the address to read and return the value stored there.
