@@ -56,7 +56,14 @@ class CPU:
             0b10101101: 'SHR',
             0b00000001: 'HLT', 
             0b10000010: 'LDI',  
-            0b01000111: 'PRN'
+            0b01000111: 'PRN',
+            0b01010100: 'JMP',
+            0b01010101: 'JEQ',
+            0b01010110: 'JNE',
+            0b01010111: 'JGT',
+            0b01011000: 'JLT',
+            0b01011001: 'JLE',
+            0b01011010: 'JGE'
         }
 
         self.halted = False
@@ -146,6 +153,9 @@ class CPU:
             self.operand_a = self.ram_read(self.pc + 1)
             self.operand_b = self.ram_read(self.pc + 2)
 
+            # print(f'SELF.IR: {self.branchtable[self.ir]}')
+            # print(f'PC: {self.pc}')
+            # print(f'SELF.FL: {self.fl}')
             if self.branchtable[self.ir] in ['ADD', 'SUB', 'MUL', 'DIV', 'MOD', 'INC', 'DEC', 'CMP']:
                 self.alu(self.ir, self.operand_a, self.operand_b)
                 if self.branchtable[self.ir] in ['INC', 'DEC']:
@@ -163,9 +173,12 @@ class CPU:
             elif self.branchtable[self.ir] in ['JEQ', 'JGE', 'JGT', 'JLE', 'JLT', 'JMP', 'JNE']:
                 if self.branchtable[self.ir] == 'JEQ' and self.fl == 1:
                     self.pc = self.reg[self.operand_a]
-
-                # print(self.reg[self.operand_a])
-                # self.pc += 2
+                elif self.branchtable[self.ir] == 'JNE' and self.fl != 1:
+                    self.pc = self.reg[self.operand_a]
+                elif self.branchtable[self.ir] == 'JMP':
+                    self.pc = self.reg[self.operand_a]
+                else: 
+                    self.pc += 2
 
             # Look at next instruction (if one exists)
             if self.branchtable[self.ram[self.pc]] == 'HLT' or not self.ram[self.pc]:
